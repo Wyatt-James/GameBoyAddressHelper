@@ -55,13 +55,47 @@ public class CommandLineAddressProgram implements AddressProgram {
             case FILE -> outS.println("File import is not implemented yet.");
 
             case COMMAND_LINE -> {
-                outS.println("Please input your addresses, one per line, followed by an empty line.");
+                outS.println("Please input your addresses in format XX:XXXX, one per line, followed by an empty line.");
                 final List<String> lines = ScannerUtil.getLines(
                         sc,
-                        Address::isNotValidString,
+                        Address::isValidString,
                         "Invalid address format: %s");
 
                 addrs.addAll(lines.stream().map(Address::fromString).collect(Collectors.toList()));
+            }
+
+            case GENERATE -> {
+                Address addr;
+                int numToGenerate;
+                int step;
+
+                while (true) {
+                    outS.println("Please input a start address, in format XX:XXXX");
+                    addr = ScannerUtil.getAddress(sc, a -> true, "");
+
+                    outS.println("How many addresses to generate?");
+                    numToGenerate = ScannerUtil.getInt(sc, i -> i > 0, "Must be > 0.");
+
+                    outS.println("What to step between each address? You can use hexadecimal with the format 0x#");
+                    step = ScannerUtil.getInt(sc, i -> i != 0, "Must not be 0.");
+
+                    int destAddr = addr.address + ((numToGenerate - 1) * step);
+
+                    if (destAddr > 0xFFFF) {
+                        outS.println("Error: this will overflow. Try again.");
+                        continue;
+                    }
+
+                    if (destAddr < 0) {
+                        outS.println("Error: this will underflow. Try again.");
+                        continue;
+                    }
+
+                    break;
+                }
+
+                for (int i = 0; i < numToGenerate; i++)
+                    addrs.add(new Address(addr.bank, addr.address + (i * step)));
             }
         }
     }
@@ -85,6 +119,7 @@ public class CommandLineAddressProgram implements AddressProgram {
     public enum ImportOption {
         FILE("Import from file"),
         COMMAND_LINE("Input via command line"),
+        GENERATE("Generate"),
         CANCEL("Cancel");
 
         public final String name;
